@@ -21,8 +21,8 @@ def setup_driver(temp_folder: str) -> webdriver.Chrome:
     options.add_argument("--headless")
     options.add_argument("--disable-blink-features=AutomationControlled")
 
-    options.add_argument("--log-level=3")  # Уровень логов: 0 = ALL, 3 = ERROR
-    options.add_argument("--disable-logging")  # Отключить внутренний логинг
+    options.add_argument("--log-level=3")
+    options.add_argument("--disable-logging")
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     prefs = {
@@ -62,7 +62,7 @@ def load_json(filepath: str) -> Dict[str, Any]:
         with open(filepath, "r", encoding="utf-8") as f:
             return json.load(f)
     except FileNotFoundError:
-        return {}  # Возвращаем пустой словарь, если файл не существует
+        return {}
     except json.JSONDecodeError as e:
         print(f"[Ошибка] Не удалось прочитать JSON: {e}")
         return {}
@@ -86,7 +86,6 @@ def compare_versions(v1: str, v2: str) -> int:
     parts1 = [int(p) for p in v1.split(".")]
     parts2 = [int(p) for p in v2.split(".")]
 
-    # Дополняем недостающие нули, чтобы сравнение было корректным
     max_length = max(len(parts1), len(parts2))
     parts1.extend([0] * (max_length - len(parts1)))
     parts2.extend([0] * (max_length - len(parts2)))
@@ -122,13 +121,11 @@ def download_mod_file(driver: webdriver.Chrome, mod_id: int) -> bool:
         print(f"Открытие страницы мода ID {mod_id}")
         driver.get(f"https://www.nexusmods.com/{GAME_DOMAIN}/mods/{mod_id}")
 
-        # Получаем текущую версию мода
         current_version = get_mod_version(driver)
         if not current_version:
             print("Не удалось определить версию мода")
             return False
 
-        # Проверяем версию
         versions_data = load_json("versions.json")
         if str(mod_id) in versions_data:
             comparison = compare_versions(current_version, versions_data[str(mod_id)])
@@ -159,7 +156,6 @@ def download_mod_file(driver: webdriver.Chrome, mod_id: int) -> bool:
         print("Slow download started")
         time.sleep(5)
 
-        # Обновляем информацию о версии
         versions_data[str(mod_id)] = current_version
         save_json(versions_data, "versions.json")
         return True
@@ -178,12 +174,11 @@ def process_single_mod(driver: webdriver.Chrome, mod_name: str) -> None:
 
     print(f"Обработка мода '{mod_name}' (ID: {mod_id})")
 
-    # Открываем новую вкладку для скачивания
     driver.execute_script("window.open('');")
     driver.switch_to.window(driver.window_handles[-1])
 
     if download_mod_file(driver, mod_id):
-        time.sleep(5)  # Даем время на скачивание
+        time.sleep(5)
 
     driver.close()
     driver.switch_to.window(driver.window_handles[0])
@@ -219,21 +214,18 @@ def ensure_directory_exists(path: str) -> None:
 
 def main() -> None:
     """Основная функция выполнения скрипта."""
-    # Настройка путей и временной папки
     script_dir = os.path.dirname(__file__)
     temp_folder = os.path.join(script_dir, "temp")
 
     ensure_directory_exists(temp_folder)
     ensure_directory_exists(MODS_FOLDER)
 
-    # Инициализация драйвера
     driver = setup_driver(temp_folder)
     driver.get("https://www.nexusmods.com")
     time.sleep(3)
     load_cookies(driver)
 
     try:
-        # Чтение и обработка списка модов
         print("Чтение списка модов...")
         mod_names = read_mod_list(MOD_LIST_FILE)
 
@@ -243,12 +235,10 @@ def main() -> None:
             except Exception as e:
                 print(f"Ошибка при обработке '{mod}': {e}")
 
-        # Распаковка архивов
         print("Распаковка архивов...")
         extract_zip_files(temp_folder, MODS_FOLDER)
 
     finally:
-        # Завершение работы
         print("Очистка временной папки...")
         if os.path.exists(temp_folder):
             shutil.rmtree(temp_folder, ignore_errors=True)
