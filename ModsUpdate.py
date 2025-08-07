@@ -26,6 +26,7 @@ logger.addHandler(console_handler)
 
 def setup_driver(temp_folder: str) -> webdriver.Chrome:
     options = Options()
+    #options.binary_location = "C:/Users/Maks/AppData/Local/Programs/Opera GX/opera.exe"
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--headless=new")
     options.add_argument("--disable-blink-features=AutomationControlled")
