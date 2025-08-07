@@ -11,24 +11,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import urllib.parse
 from typing import Dict, List, Optional
 
-
-# Конфигурационные константы
-MOD_NAME_TO_ID: Dict[str, int] = {
-    "animation_events": 21,
-    "book_finder": 121,
-    "ChatBlock": 68,
-    "Decode_Helper": 252,
-    "NumericUI": 14,
-    "PingMonitor": 13,
-    "scoreboard": 22,
-    "SoloPlay": 176,
-    "Spidey Sense": 268,
-    "true_level": 156,
-}
-
-MOD_LIST_FILE = "Z:/SteamLibrary/steamapps/common/Warhammer 40,000 DARKTIDE/mods/mod_load_order.txt"
-MODS_FOLDER = "Z:/SteamLibrary/steamapps/common/Warhammer 40,000 DARKTIDE/mods"
-GAME_DOMAIN = "warhammer40kdarktide"
+from config import MOD_NAME_TO_ID, MOD_LIST_FILE, MODS_FOLDER, GAME_DOMAIN
 
 
 def setup_driver(temp_folder: str) -> webdriver.Chrome:
@@ -64,7 +47,7 @@ def load_cookies(driver: webdriver.Chrome, cookies_file: str = "cookies.json") -
                 driver.add_cookie(cookie)
             except Exception as e:
                 print(f"[Cookie Error] {e}")
-    
+
     driver.refresh()
     time.sleep(3)
 
@@ -139,7 +122,7 @@ def read_mod_list(file_path: str) -> List[str]:
     """Читает список модов из файла."""
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"Файл со списком модов не найден: {file_path}")
-    
+
     with open(file_path, "r", encoding="utf-8") as f:
         return [line.strip() for line in f if line.strip()]
 
@@ -155,7 +138,7 @@ def main() -> None:
     # Настройка путей и временной папки
     script_dir = os.path.dirname(__file__)
     temp_folder = os.path.join(script_dir, "temp")
-    
+
     ensure_directory_exists(temp_folder)
     ensure_directory_exists(MODS_FOLDER)
 
@@ -169,7 +152,7 @@ def main() -> None:
         # Чтение и обработка списка модов
         print("Чтение списка модов...")
         mod_names = read_mod_list(MOD_LIST_FILE)
-        
+
         for mod in mod_names:
             try:
                 process_single_mod(driver, mod)
@@ -185,7 +168,7 @@ def main() -> None:
         print("Очистка временной папки...")
         if os.path.exists(temp_folder):
             shutil.rmtree(temp_folder, ignore_errors=True)
-        
+
         driver.quit()
         print("Готово.")
 
