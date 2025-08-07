@@ -6,6 +6,7 @@ temp/
 cookies.json
 *.secret
 .env
+.venv/
 
 # Python
 __pycache__/

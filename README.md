@@ -16,3 +16,5 @@ open config.py in text editor and set:</br>
 * MOD_LIST_FILE = path to mod_load_order.txt
 * MODS_FOLDER = path to folder with mods
 * GAME_DOMAIN = game name as on nexusmods
+## 7
+run init.bat
