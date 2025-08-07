@@ -9,7 +9,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import urllib.parse
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from config import MOD_NAME_TO_ID, MOD_LIST_FILE, MODS_FOLDER, GAME_DOMAIN
 
@@ -20,6 +20,10 @@ def setup_driver(temp_folder: str) -> webdriver.Chrome:
     options.add_argument("--window-size=1920,1080")
     options.add_argument("--headless")
     options.add_argument("--disable-blink-features=AutomationControlled")
+
+    options.add_argument("--log-level=3")  # Уровень логов: 0 = ALL, 3 = ERROR
+    options.add_argument("--disable-logging")  # Отключить внутренний логинг
+    options.add_experimental_option("excludeSwitches", ["enable-logging"])
 
     prefs = {
         "download.default_directory": temp_folder,
@@ -52,6 +56,63 @@ def load_cookies(driver: webdriver.Chrome, cookies_file: str = "cookies.json") -
     time.sleep(3)
 
 
+def load_json(filepath: str) -> Dict[str, Any]:
+    """Открывает JSON-файл и возвращает его содержимое как словарь."""
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}  # Возвращаем пустой словарь, если файл не существует
+    except json.JSONDecodeError as e:
+        print(f"[Ошибка] Не удалось прочитать JSON: {e}")
+        return {}
+
+
+def save_json(data: Dict[str, Any], filepath: str) -> None:
+    """Сохраняет переданный словарь в JSON-файл."""
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+def compare_versions(v1: str, v2: str) -> int:
+    """
+    Сравнивает две версии (в формате "1.2.3", "1.1", и т.п.).
+
+    Возвращает:
+        -1 если v1 < v2
+         0 если v1 == v2
+         1 если v1 > v2
+    """
+    parts1 = [int(p) for p in v1.split(".")]
+    parts2 = [int(p) for p in v2.split(".")]
+
+    # Дополняем недостающие нули, чтобы сравнение было корректным
+    max_length = max(len(parts1), len(parts2))
+    parts1.extend([0] * (max_length - len(parts1)))
+    parts2.extend([0] * (max_length - len(parts2)))
+
+    for p1, p2 in zip(parts1, parts2):
+        if p1 < p2:
+            return -1
+        elif p1 > p2:
+            return 1
+    return 0
+
+
+def get_mod_version(driver: webdriver.Chrome) -> Optional[str]:
+    """Получает текущую версию мода со страницы Nexus Mods."""
+    try:
+        version_element = WebDriverWait(driver, 15).until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "li.stat-version div.stat")
+            )
+        )
+        return version_element.text.strip()
+    except Exception as e:
+        print(f"Не удалось получить версию мода: {e}")
+        return None
+
+
 def download_mod_file(driver: webdriver.Chrome, mod_id: int) -> bool:
     """
     Выполняет скачивание мода по его ID.
@@ -60,6 +121,25 @@ def download_mod_file(driver: webdriver.Chrome, mod_id: int) -> bool:
     try:
         print(f"Открытие страницы мода ID {mod_id}")
         driver.get(f"https://www.nexusmods.com/{GAME_DOMAIN}/mods/{mod_id}")
+
+        # Получаем текущую версию мода
+        current_version = get_mod_version(driver)
+        if not current_version:
+            print("Не удалось определить версию мода")
+            return False
+
+        # Проверяем версию
+        versions_data = load_json("versions.json")
+        if str(mod_id) in versions_data:
+            comparison = compare_versions(current_version, versions_data[str(mod_id)])
+            if comparison == 0:
+                print(f"Мод {mod_id} уже имеет актуальную версию ({current_version})")
+                return True
+            elif comparison < 0:
+                print(
+                    f"Локальная версия ({versions_data[str(mod_id)]}) новее, чем на сайте ({current_version})"
+                )
+                return False
 
         manual_link = WebDriverWait(driver, 15).until(
             EC.element_to_be_clickable(
@@ -78,6 +158,10 @@ def download_mod_file(driver: webdriver.Chrome, mod_id: int) -> bool:
         slow_button.click()
         print("Slow download started")
         time.sleep(5)
+
+        # Обновляем информацию о версии
+        versions_data[str(mod_id)] = current_version
+        save_json(versions_data, "versions.json")
         return True
 
     except Exception as e:
